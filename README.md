@@ -1,3 +1,4 @@
+[![Go Reference](https://pkg.go.dev/badge/github.com/ChayanDass/gobtc-lib.svg)](https://pkg.go.dev/github.com/ChayanDass/gobtc-lib)
 # GoBTC Library
 
 GoBTC is a lightweight Go library for Bitcoin wallet management and key handling.  
