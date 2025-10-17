@@ -1,9 +1,10 @@
 package main
 
 import (
-	networks "ChayanDass/Bitcoin-lib/Network"
-	pk "ChayanDass/Bitcoin-lib/keys/PrivateKey"
 	"fmt"
+
+	networks "github.com/ChayanDass/gobtc-lib/Network"
+	pk "github.com/ChayanDass/gobtc-lib/keys/PrivateKey"
 )
 
 func main() {

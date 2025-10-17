@@ -1,14 +1,14 @@
 package privatekey
 
 import (
-	networks "ChayanDass/Bitcoin-lib/Network"
-	base58 "ChayanDass/Bitcoin-lib/utils"
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 
+	networks "github.com/ChayanDass/gobtc-lib/Network"
+	base58 "github.com/ChayanDass/gobtc-lib/utils"
 	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -24,7 +24,6 @@ type PrivateKey struct {
 func NewPrivateKey(netArg interface{}) (*PrivateKey, error) {
 	var net *networks.Network
 	var err error
-
 	switch v := netArg.(type) {
 	case string:
 		// If it's a string, try to get the network by name
@@ -37,14 +36,10 @@ func NewPrivateKey(netArg interface{}) (*PrivateKey, error) {
 		net = v
 	case nil:
 		// Default network (mainnet)
-		net, err = networks.Get("mainnet")
-		if err != nil {
-			return nil, err
-		}
+		net = networks.Default
 	default:
 		return nil, errors.New("invalid type for netArg: must be string or *Network")
 	}
-
 	priv, err := secp.GeneratePrivateKey()
 	if err != nil {
 		return nil, err
@@ -72,6 +67,33 @@ func (p *PrivateKey) ToAddress() (string, error) {
 	checksum := DoubleSHA256(payload)[:4]
 	full := append(payload, checksum...)
 	return base58.Encode(full), nil
+}
+
+// ToWIF converts the private key to Wallet Import Format
+func (p *PrivateKey) ToWIF() string {
+	prefix := []byte{p.Network.PrivateKey}
+	keyBytes := p.Key.Serialize()
+
+	var buf []byte
+	if p.Compressed {
+		buf = append(prefix, append(keyBytes, 0x01)...)
+	} else {
+		buf = append(prefix, keyBytes...)
+	}
+
+	checksum := DoubleSHA256(buf)[:4]
+	final := append(buf, checksum...)
+	return base58.Encode(final)
+}
+
+// ToHex returns the private key in hex form
+func (p *PrivateKey) ToHex() string {
+	return hex.EncodeToString(p.Key.Serialize())
+}
+
+// PublicKey derives the corresponding public key
+func (p *PrivateKey) ToPublicKey() *secp.PublicKey {
+	return p.Key.PubKey()
 }
 
 // FromHex creates a PrivateKey from hex string
@@ -128,33 +150,6 @@ func FromWIF(wif string) (*PrivateKey, error) {
 
 	priv := secp.PrivKeyFromBytes(keyBytes)
 	return &PrivateKey{Key: priv, Compressed: compressed, Network: net}, nil
-}
-
-// ToWIF converts the private key to Wallet Import Format
-func (p *PrivateKey) ToWIF() string {
-	prefix := []byte{p.Network.PrivateKey}
-	keyBytes := p.Key.Serialize()
-
-	var buf []byte
-	if p.Compressed {
-		buf = append(prefix, append(keyBytes, 0x01)...)
-	} else {
-		buf = append(prefix, keyBytes...)
-	}
-
-	checksum := DoubleSHA256(buf)[:4]
-	final := append(buf, checksum...)
-	return base58.Encode(final)
-}
-
-// ToHex returns the private key in hex form
-func (p *PrivateKey) ToHex() string {
-	return hex.EncodeToString(p.Key.Serialize())
-}
-
-// PublicKey derives the corresponding public key
-func (p *PrivateKey) ToPublicKey() *secp.PublicKey {
-	return p.Key.PubKey()
 }
 
 // Utility: DoubleSHA256

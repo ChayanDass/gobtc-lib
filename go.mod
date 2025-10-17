@@ -1,4 +1,4 @@
-module ChayanDass/Bitcoin-lib
+module github.com/ChayanDass/gobtc-lib
 
 go 1.24.6
 

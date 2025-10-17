@@ -1,8 +1,8 @@
 package keys
 
 import (
-	networks "ChayanDass/Bitcoin-lib/Network"
-	privatekey "ChayanDass/Bitcoin-lib/keys/PrivateKey"
+	networks "github.com/ChayanDass/gobtc-lib/Network"
+	privatekey "github.com/ChayanDass/gobtc-lib/keys/PrivateKey"
 
 	"bytes"
 	"crypto/sha256"
