@@ -49,6 +49,13 @@ func AddNetwork(data *Network) *Network {
 	return data
 }
 
+// SetDefault sets the default network for the library
+func SetDefault(net *Network) {
+	if net != nil {
+		Default = net
+	}
+}
+
 // Get retrieves a network by name, alias, or any key like pubkeyhash or prefix.
 func Get(arg interface{}) (*Network, error) {
 	if arr, ok := networkMap[arg]; ok && len(arr) > 0 {

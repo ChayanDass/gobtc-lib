@@ -8,16 +8,21 @@ import (
 )
 
 func main() {
-	prvkey, err := pk.NewPrivateKey(networks.Testnet)
+	networks.SetDefault(networks.Testnet)
+	fmt.Print(networks.Default.Name)
+	prvkey, err := pk.NewPrivateKey(&pk.KeyOptions{
+		Data: "9fb6635efa0bc2cd718ac22a4aedfb7deda6da8d80fdf8e85017cf1deffc2cf8",
+	})
 	if err != nil {
 		fmt.Println("failed to create private key:", err)
 		return
 	}
 	fmt.Println("Generated Private Key:", prvkey.ToString())
+	fmt.Println("address", prvkey.ToAddress())
 
-	wif := prvkey.ToWIF()
-	fmt.Println("WIF:", wif)
+	// wif := prvkey.ToWIF()
+	// fmt.Println("WIF:", wif)
 
-	wif1, _ := pk.FromWIF(wif)
-	fmt.Println("WIF to Private Key:", wif1.ToString())
+	// wif1, _ := pk.FromWIF(wif)
+	// fmt.Println("WIF to Private Key:", wif1.ToString())
 }

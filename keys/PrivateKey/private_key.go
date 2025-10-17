@@ -18,39 +18,53 @@ type PrivateKey struct {
 	Compressed bool
 	Network    *networks.Network
 }
+type KeyOptions struct {
+	Data    interface{}       // optional: existing private key, BN, or hex string
+	Network *networks.Network // optional: network to use
+}
 
-// NewPrivateKey creates a new private key for the given network.
-// Accepts either a string (network name) or a *Network object.
-func NewPrivateKey(netArg interface{}) (*PrivateKey, error) {
+func NewPrivateKey(opts *KeyOptions) (*PrivateKey, error) { // use null for opts
 	var net *networks.Network
+	var privKey *secp.PrivateKey
 	var err error
-	switch v := netArg.(type) {
-	case string:
-		// If it's a string, try to get the network by name
-		net, err = networks.Get(v)
-		if err != nil {
-			return nil, fmt.Errorf("unknown network: %v", v)
-		}
-	case *networks.Network:
-		// If it's already a network object, use it
-		net = v
-	case nil:
-		// Default network (mainnet)
+
+	// Handle network
+	if opts != nil && opts.Network != nil {
+		net = opts.Network
+	} else {
 		net = networks.Default
-	default:
-		return nil, errors.New("invalid type for netArg: must be string or *Network")
 	}
-	priv, err := secp.GeneratePrivateKey()
-	if err != nil {
-		return nil, err
+
+	// Handle existing data or generate new
+	if opts != nil && opts.Data != nil {
+		switch v := opts.Data.(type) {
+		case *PrivateKey:
+			privKey = v.Key // extract inner secp.PrivateKey
+		case string:
+			// Could be hex string
+			pkObj, err := FromHex(v, net)
+			if err != nil {
+				return nil, fmt.Errorf("invalid private key hex: %v", err)
+			}
+			privKey = pkObj.Key
+		default:
+			return nil, fmt.Errorf("unsupported data type: %T", v)
+		}
+	} else {
+		// Generate new private key
+		privKey, err = secp.GeneratePrivateKey()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &PrivateKey{
-		Key:        priv,
+		Key:        privKey,
 		Compressed: true,
 		Network:    net,
 	}, nil
 }
+
 func (pk *PrivateKey) ToString() string {
 	if pk == nil || pk.Key == nil {
 		return "<nil>"
@@ -59,14 +73,14 @@ func (pk *PrivateKey) ToString() string {
 }
 
 // ToAddress (Legacy P2PKH)
-func (p *PrivateKey) ToAddress() (string, error) {
+func (p *PrivateKey) ToAddress() string {
 	pub := p.ToPublicKey().SerializeCompressed()
 	hash160 := Hash160(pub)
 	version := []byte{p.Network.PubKeyHash}
 	payload := append(version, hash160...)
 	checksum := DoubleSHA256(payload)[:4]
 	full := append(payload, checksum...)
-	return base58.Encode(full), nil
+	return base58.Encode(full)
 }
 
 // ToWIF converts the private key to Wallet Import Format
@@ -97,22 +111,18 @@ func (p *PrivateKey) ToPublicKey() *secp.PublicKey {
 }
 
 // FromHex creates a PrivateKey from hex string
-func FromHex(hexKey string, netName string) (*PrivateKey, error) {
+func FromHex(hexKey string, net *networks.Network) (*PrivateKey, error) {
 	bytesKey, err := hex.DecodeString(hexKey)
 	if err != nil {
 		return nil, err
 	}
-	return FromBytes(bytesKey, netName)
+	return FromBytes(bytesKey, net)
 }
 
 // FromBytes creates PrivateKey from 32-byte buffer
-func FromBytes(b []byte, netName string) (*PrivateKey, error) {
+func FromBytes(b []byte, net *networks.Network) (*PrivateKey, error) {
 	if len(b) != 32 {
 		return nil, errors.New("private key must be 32 bytes")
-	}
-	net, err := networks.Get(netName)
-	if err != nil {
-		return nil, err
 	}
 
 	priv := secp.PrivKeyFromBytes(b)
