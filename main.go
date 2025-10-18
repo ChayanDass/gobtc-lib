@@ -9,7 +9,7 @@ import (
 
 func main() {
 	networks.SetDefault(networks.Testnet)
-	fmt.Print(networks.Default.Name)
+
 	prvkey, err := pk.NewPrivateKey(&pk.KeyOptions{
 		Data: "9fb6635efa0bc2cd718ac22a4aedfb7deda6da8d80fdf8e85017cf1deffc2cf8",
 	})

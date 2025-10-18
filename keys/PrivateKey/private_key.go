@@ -72,12 +72,19 @@ func (pk *PrivateKey) ToString() string {
 	}
 	return hex.EncodeToString(pk.Key.Serialize())
 }
+func (p *PrivateKey) ToAddress(addrType ...string) *addr.Address {
+	pubKey := p.ToPublicKey()
 
-func (p *PrivateKey) ToAddress() *addr.Address {
-	pubKey := p.ToPublicKey() // get public ke
+	// default type if none provided
+	typ := addr.PayToPublicKeyHash
+	if len(addrType) > 0 && addrType[0] != "" {
+		typ = addrType[0]
+	}
+
 	address, err := addr.NewAddress(&addr.KeyOptions{
 		Data:    pubKey,
 		Network: p.Network,
+		Type:    typ,
 	})
 	if err != nil {
 		return nil
