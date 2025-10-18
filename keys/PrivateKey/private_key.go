@@ -9,7 +9,7 @@ import (
 
 	networks "github.com/ChayanDass/gobtc-lib/Network"
 	addr "github.com/ChayanDass/gobtc-lib/keys/Address"
-	base58 "github.com/ChayanDass/gobtc-lib/utils"
+	base58 "github.com/ChayanDass/gobtc-lib/utils/base58"
 	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -81,7 +81,7 @@ func (p *PrivateKey) ToAddress(addrType ...string) *addr.Address {
 		typ = addrType[0]
 	}
 
-	address, err := addr.NewAddress(&addr.KeyOptions{
+	address, err := addr.FromPublicKey(&addr.KeyOptions{
 		Data:    pubKey,
 		Network: p.Network,
 		Type:    typ,

@@ -1,11 +1,13 @@
 package Address
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 
 	networks "github.com/ChayanDass/gobtc-lib/Network"
 	utils "github.com/ChayanDass/gobtc-lib/utils"
+	"github.com/ChayanDass/gobtc-lib/utils/base58"
 	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
@@ -17,12 +19,31 @@ const (
 	PayToTaproot              = "taproot"
 )
 
+// --- Helpers to detect address type ---
+func (a *Address) IsPayToPublicKeyHash() bool        { return a.Type == PayToPublicKeyHash }
+func (a *Address) IsPayToScriptHash() bool           { return a.Type == PayToScriptHash }
+func (a *Address) IsPayToWitnessPublicKeyHash() bool { return a.Type == PayToWitnessPublicKeyHash }
+func (a *Address) IsPayToWitnessScriptHash() bool    { return a.Type == PayToWitnessScriptHash }
+func (a *Address) IsPayToTaproot() bool              { return a.Type == PayToTaproot }
+
+// --- Get version byte for Base58Check ---
+func (a *Address) NetworkByte() byte {
+	switch a.Type {
+	case PayToPublicKeyHash:
+		return a.Network.PubKeyHash
+	case PayToScriptHash:
+		return a.Network.ScriptHash
+	default:
+		return 0x00
+	}
+}
+
 // Address represents a Bitcoin address
 type Address struct {
-	Address  string
-	Network  *networks.Network
-	Type     string
-	MultiSig string
+	Network    *networks.Network
+	Type       string
+	HashBuffer []byte // hash160(pubkey) or script hash
+	MultiSig   string
 }
 type KeyOptions struct {
 	Data     *secp.PublicKey
@@ -31,10 +52,15 @@ type KeyOptions struct {
 	MultiSig string
 }
 
-// Returns the Bitcoin address as string
+// ToString returns Base58Check encoded address (legacy only)
 func (a *Address) ToString() string {
-	return a.Address
+	version := a.NetworkByte()
+	return base58.CheckEncode(a.HashBuffer, version)
+}
 
+// HashHex return the PubHash at hex format
+func (a *Address) HashHex() string {
+	return hex.EncodeToString(a.HashBuffer)
 }
 
 // NewAddress constructs a new Address instance
@@ -57,7 +83,6 @@ func NewAddress(opts *KeyOptions) (*Address, error) {
 }
 
 // transformPublicKey takes KeyOptions and returns the encoded address string
-// TransformPublicKey converts a given public key into a Bitcoin address
 func TransformPublicKey(opts *KeyOptions) (*Address, error) {
 	if opts == nil {
 		return nil, errors.New("options cannot be nil")
@@ -79,18 +104,12 @@ func TransformPublicKey(opts *KeyOptions) (*Address, error) {
 	}
 
 	pubKey := opts.Data.SerializeCompressed()
-	var address string
+	var hash160 []byte
 
 	switch addrType {
 	case PayToPublicKeyHash:
 		// Legacy P2PKH
-		hash160 := utils.Hash160(pubKey)
-		version := []byte{net.PubKeyHash}
-		payload := append(version, hash160...)
-		checksum := utils.DoubleSHA256(payload)[:4]
-		full := append(payload, checksum...)
-		address = utils.Encode(full)
-
+		hash160 = utils.Hash160(pubKey)
 	case PayToScriptHash:
 		return nil, errors.New("P2SH transformation not implemented yet")
 
@@ -108,9 +127,34 @@ func TransformPublicKey(opts *KeyOptions) (*Address, error) {
 	}
 
 	return &Address{
-		Address:  address,
-		Network:  net,
-		Type:     addrType,
-		MultiSig: opts.MultiSig,
+		Network:    net,
+		Type:       addrType,
+		MultiSig:   opts.MultiSig,
+		HashBuffer: hash160,
+	}, nil
+}
+func FromPublicKey(opts *KeyOptions) (*Address, error) {
+	if opts == nil {
+		return nil, errors.New("options cannot be nil")
+	}
+
+	// Use default network if nil or empty
+	network := opts.Network
+	if network == nil || network.Name == "" {
+		network = networks.Default
+	}
+
+	// Transform public key to address info
+	info, err := TransformPublicKey(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return fully initialized Address
+	return &Address{
+		HashBuffer: info.HashBuffer,
+		Network:    network,
+		Type:       info.Type,
+		MultiSig:   opts.MultiSig,
 	}, nil
 }
