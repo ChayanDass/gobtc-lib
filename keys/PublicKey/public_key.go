@@ -1,4 +1,4 @@
-package keys
+package publickey
 
 import (
 	networks "github.com/ChayanDass/gobtc-lib/Network"

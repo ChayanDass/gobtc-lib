@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	networks "github.com/ChayanDass/gobtc-lib/Network"
+	addr "github.com/ChayanDass/gobtc-lib/keys/Address"
 	base58 "github.com/ChayanDass/gobtc-lib/utils"
 	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/ripemd160"
@@ -72,15 +73,21 @@ func (pk *PrivateKey) ToString() string {
 	return hex.EncodeToString(pk.Key.Serialize())
 }
 
-// ToAddress (Legacy P2PKH)
-func (p *PrivateKey) ToAddress() string {
-	pub := p.ToPublicKey().SerializeCompressed()
-	hash160 := Hash160(pub)
-	version := []byte{p.Network.PubKeyHash}
-	payload := append(version, hash160...)
-	checksum := DoubleSHA256(payload)[:4]
-	full := append(payload, checksum...)
-	return base58.Encode(full)
+func (p *PrivateKey) ToAddress() *addr.Address {
+	pubKey := p.ToPublicKey() // get public ke
+	address, err := addr.NewAddress(&addr.KeyOptions{
+		Data:    pubKey,
+		Network: p.Network,
+	})
+	if err != nil {
+		return nil
+	}
+	return address
+}
+
+// ToPublicKey derives the corresponding public key
+func (p *PrivateKey) ToPublicKey() *secp.PublicKey {
+	return p.Key.PubKey()
 }
 
 // ToWIF converts the private key to Wallet Import Format
@@ -103,11 +110,6 @@ func (p *PrivateKey) ToWIF() string {
 // ToHex returns the private key in hex form
 func (p *PrivateKey) ToHex() string {
 	return hex.EncodeToString(p.Key.Serialize())
-}
-
-// PublicKey derives the corresponding public key
-func (p *PrivateKey) ToPublicKey() *secp.PublicKey {
-	return p.Key.PubKey()
 }
 
 // FromHex creates a PrivateKey from hex string

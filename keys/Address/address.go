@@ -1,4 +1,4 @@
-package address
+package Address
 
 import (
 	"errors"
@@ -19,6 +19,12 @@ const (
 
 // Address represents a Bitcoin address
 type Address struct {
+	Address  string
+	Network  *networks.Network
+	Type     string
+	MultiSig string
+}
+type KeyOptions struct {
 	Data     *secp.PublicKey
 	Network  *networks.Network
 	Type     string
@@ -27,22 +33,14 @@ type Address struct {
 
 // Returns the Bitcoin address as string
 func (a *Address) ToString() string {
-	if a.Data == nil {
-		return ""
-	}
-	pub := a.Data.SerializeCompressed()
-	hash160 := utils.Hash160(pub)
-	version := []byte{a.Network.PubKeyHash}
-	payload := append(version, hash160...)
-	checksum := utils.DoubleSHA256(payload)[:4]
-	full := append(payload, checksum...)
-	return utils.Encode(full)
+	return a.Address
+
 }
 
 // NewAddress constructs a new Address instance
-func NewAddress(opts *Address) (string, error) {
+func NewAddress(opts *KeyOptions) (*Address, error) {
 	if opts == nil {
-		return "", errors.New("options cannot be nil")
+		return nil, errors.New("options cannot be nil")
 	}
 	// Validate Type
 	addrType := opts.Type
@@ -52,8 +50,67 @@ func NewAddress(opts *Address) (string, error) {
 		addrType != PayToWitnessPublicKeyHash &&
 		addrType != PayToWitnessScriptHash &&
 		addrType != PayToTaproot {
-		return "", fmt.Errorf("invalid type: %s; must be 'pubkeyhash', 'scripthash', 'witnesspubkeyhash', 'witnessscripthash', or 'taproot'", addrType)
+		return nil, fmt.Errorf("invalid type: %s; must be 'pubkeyhash', 'scripthash', 'witnesspubkeyhash', 'witnessscripthash', or 'taproot'", addrType)
 	}
-	return opts.ToString(), nil
+	return TransformPublicKey(opts)
 
+}
+
+// transformPublicKey takes KeyOptions and returns the encoded address string
+// TransformPublicKey converts a given public key into a Bitcoin address
+func TransformPublicKey(opts *KeyOptions) (*Address, error) {
+	if opts == nil {
+		return nil, errors.New("options cannot be nil")
+	}
+	if opts.Data == nil {
+		return nil, errors.New("public key cannot be nil")
+	}
+
+	// Default to P2PKH if type is empty
+	addrType := opts.Type
+	if addrType == "" {
+		addrType = PayToPublicKeyHash
+	}
+
+	// Default to mainnet if network not specified
+	net := opts.Network
+	if net == nil {
+		net = networks.Default
+	}
+
+	pubKey := opts.Data.SerializeCompressed()
+	var address string
+
+	switch addrType {
+	case PayToPublicKeyHash:
+		// Legacy P2PKH
+		hash160 := utils.Hash160(pubKey)
+		version := []byte{net.PubKeyHash}
+		payload := append(version, hash160...)
+		checksum := utils.DoubleSHA256(payload)[:4]
+		full := append(payload, checksum...)
+		address = utils.Encode(full)
+
+	case PayToScriptHash:
+		return nil, errors.New("P2SH transformation not implemented yet")
+
+	// Uncomment when utils has Bech32 functions
+	// case PayToWitnessPublicKeyHash:
+	// 	hash160 := utils.Hash160(pubKey)
+	// 	address = utils.Bech32Encode(net.Bech32Prefix, hash160)
+
+	// case PayToTaproot:
+	// 	taprootHash := utils.SHA256(pubKey)
+	// 	address = utils.Bech32mEncode(net.Bech32Prefix, taprootHash)
+
+	default:
+		return nil, fmt.Errorf("unsupported address type: %s", addrType)
+	}
+
+	return &Address{
+		Address:  address,
+		Network:  net,
+		Type:     addrType,
+		MultiSig: opts.MultiSig,
+	}, nil
 }

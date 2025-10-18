@@ -18,7 +18,7 @@ func main() {
 		return
 	}
 	fmt.Println("Generated Private Key:", prvkey.ToString())
-	fmt.Println("address", prvkey.ToAddress())
+	fmt.Println("address", prvkey.ToAddress().ToString())
 
 	// wif := prvkey.ToWIF()
 	// fmt.Println("WIF:", wif)
